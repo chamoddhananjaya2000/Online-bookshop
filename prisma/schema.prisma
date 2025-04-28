@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "mongodb"
+  url      = env("prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiZTg5ODUwY2ItMDYwMS00YmIzLTljNjItYTVlY2E1YzEzMjJjIiwidGVuYW50X2lkIjoiODAzYzk5NjM1ODU3NjhkNWMxZjM5YTA3YjAzOTg3MzYwODc3NDRhYjM3NzczNjBhNTFlMjg0ODJkNGFmNTA4YSIsImludGVybmFsX3NlY3JldCI6IjEwY2RkN2E5LWQ0MDEtNGE3My1hOGNhLTZjZjM2ZjUyODg5MyJ9.cUYMEaPfi1hDWB7JR-8zNHHtNBA_fkkXrOghPRi07VM")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String   @unique
+  password  String
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Order {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String      @db.ObjectId
+  status          String      @default("pending")
+  shippingAddress String
+  paymentMethod   String
+  subtotal        Float
+  tax             Float
+  shipping        Float
+  total           Float
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id])
+  orderItems      OrderItem[]
+}
+
+model OrderItem {
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  orderId    String  @db.ObjectId
+  bookId     String
+  title      String
+  price      Float
+  quantity   Int
+  coverImage String?
+  order      Order   @relation(fields: [orderId], references: [id])
+}
