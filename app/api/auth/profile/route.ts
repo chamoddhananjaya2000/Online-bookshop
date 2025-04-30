@@ -1,27 +1,35 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth-options"
+import { prisma } from "@/lib/prisma-setup"
+import { verifyToken } from "@/lib/jwt"
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    // Get authorization header
+    const authHeader = request.headers.get("authorization")
 
-    if (!session || !session.user) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Extract token
+    const token = authHeader.split(" ")[1]
+    const payload = verifyToken(token)
+
+    if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { userId, name, email, currentPassword, newPassword } = await request.json()
 
     // Verify that the user is updating their own profile
-    if (userId !== session.user.id) {
+    if (userId !== payload.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
     // Check if email is already taken by another user
     if (email) {
-      const existingUser = await db.user.findUnique({
+      const existingUser = await prisma.user.findUnique({
         where: { email },
       })
 
@@ -41,7 +49,7 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: "Current password is required" }, { status: 400 })
       }
 
-      const user = await db.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: userId },
       })
 
@@ -60,7 +68,7 @@ export async function PUT(request: Request) {
     }
 
     // Update user
-    const updatedUser = await db.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
       select: {

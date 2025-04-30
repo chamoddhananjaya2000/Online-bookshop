@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth-options"
+import { prisma } from "@/lib/prisma-setup"
+import { verifyToken } from "@/lib/jwt"
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    // Get authorization header
+    const authHeader = request.headers.get("authorization")
 
-    if (!session || !session.user) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Extract token
+    const token = authHeader.split(" ")[1]
+    const payload = verifyToken(token)
+
+    if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -19,9 +27,9 @@ export async function POST(request: Request) {
     }
 
     // Create order
-    const order = await db.order.create({
+    const order = await prisma.order.create({
       data: {
-        userId: session.user.id,
+        userId: payload.id,
         status: "pending",
         shippingAddress: JSON.stringify(shippingAddress),
         paymentMethod,
@@ -53,23 +61,37 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    // Get authorization header
+    const authHeader = request.headers.get("authorization")
 
-    if (!session || !session.user) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Extract token
+    const token = authHeader.split(" ")[1]
+    const payload = verifyToken(token)
+
+    if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
+    const userId = searchParams.get("userId") || payload.id
 
     // Only allow users to see their own orders (or admins can see all)
-    if (userId && userId !== session.user.id && !session.user.isAdmin) {
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { isAdmin: true },
+    })
+
+    if (userId !== payload.id && !user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    const orders = await db.order.findMany({
+    const orders = await prisma.order.findMany({
       where: {
-        userId: userId || session.user.id,
+        userId: userId,
       },
       include: {
         orderItems: true,

@@ -63,10 +63,18 @@ export async function registerUser(params: RegisterParams): Promise<User> {
 export async function updateUserProfile(params: UpdateProfileParams): Promise<User> {
   const { userId, name, email, currentPassword, newPassword } = params
 
+  // Get token from storage
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   const response = await fetch("/api/auth/profile", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ userId, name, email, currentPassword, newPassword }),
   })

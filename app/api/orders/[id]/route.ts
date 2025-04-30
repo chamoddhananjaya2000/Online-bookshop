@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth-options"
+import { prisma } from "@/lib/prisma-setup"
+import { verifyToken } from "@/lib/jwt"
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions)
+    // Get authorization header
+    const authHeader = request.headers.get("authorization")
 
-    if (!session || !session.user) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Extract token
+    const token = authHeader.split(" ")[1]
+    const payload = verifyToken(token)
+
+    if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const orderId = params.id
 
-    const order = await db.order.findUnique({
+    const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
         orderItems: true,
@@ -24,8 +32,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+    // Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { isAdmin: true },
+    })
+
     // Only allow users to see their own orders (or admins can see all)
-    if (order.userId !== session.user.id && !session.user.isAdmin) {
+    if (order.userId !== payload.id && !user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 

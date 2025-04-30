@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { db } from "@/lib/db"
+import { prisma } from "@/lib/prisma-setup"
 import { generateToken } from "@/lib/jwt"
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user already exists
-    const existingUser = await db.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email },
     })
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create new user
-    const user = await db.user.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,
@@ -40,7 +40,11 @@ export async function POST(request: Request) {
     })
 
     // Generate JWT token
-    const token = generateToken(user)
+    const token = generateToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    })
 
     // Return user data and token
     return NextResponse.json({

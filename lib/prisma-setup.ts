@@ -1,13 +1,14 @@
 import { PrismaClient } from "@prisma/client"
-import { prisma } from "./prisma-setup"
 
 // Prevent multiple instances of Prisma Client in development
 declare global {
   var prisma: PrismaClient | undefined
 }
 
-export const db = global.prisma || new PrismaClient()
+const client = global.prisma || new PrismaClient()
 
 if (process.env.NODE_ENV !== "production") {
-  global.prisma = db
+  global.prisma = client
 }
+
+export const prisma = client

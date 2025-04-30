@@ -3,7 +3,7 @@
 
 datasource db {
   provider = "mongodb"
-  url      = env("prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiZTg5ODUwY2ItMDYwMS00YmIzLTljNjItYTVlY2E1YzEzMjJjIiwidGVuYW50X2lkIjoiODAzYzk5NjM1ODU3NjhkNWMxZjM5YTA3YjAzOTg3MzYwODc3NDRhYjM3NzczNjBhNTFlMjg0ODJkNGFmNTA4YSIsImludGVybmFsX3NlY3JldCI6IjEwY2RkN2E5LWQ0MDEtNGE3My1hOGNhLTZjZjM2ZjUyODg5MyJ9.cUYMEaPfi1hDWB7JR-8zNHHtNBA_fkkXrOghPRi07VM")
+  url      = env("mongodb+srv://chamoddhananjaya2000:Sacwushu2016@cluster0.g3audly.mongodb.net/crud")
 }
 
 generator client {

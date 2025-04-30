@@ -20,10 +20,18 @@ interface CreateOrderParams {
 export async function createOrder(params: CreateOrderParams): Promise<Order> {
   const { userId, items, shippingAddress, paymentMethod, subtotal, tax, shipping, total } = params
 
+  // Get token from storage
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   const response = await fetch("/api/orders", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       userId,
@@ -47,10 +55,18 @@ export async function createOrder(params: CreateOrderParams): Promise<Order> {
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
+  // Get token from storage
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   const response = await fetch(`/api/orders?userId=${userId}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
   })
 
@@ -64,10 +80,18 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
 }
 
 export async function getOrderById(orderId: string): Promise<Order> {
+  // Get token from storage
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   const response = await fetch(`/api/orders/${orderId}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
   })
 
