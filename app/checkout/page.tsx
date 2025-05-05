@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/cart-context"
 import { useAuth } from "@/context/auth-context"
@@ -20,6 +19,14 @@ export default function CheckoutPage() {
   const { toast } = useToast()
   const router = useRouter()
 
+  const [token, setToken] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token") || sessionStorage.getItem("token")
+    setToken(storedToken)
+  }, [])
+
   const [formData, setFormData] = useState({
     fullName: user?.name || "",
     email: user?.email || "",
@@ -30,10 +37,8 @@ export default function CheckoutPage() {
     paymentMethod: "credit-card",
   })
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
-  const tax = subtotal * 0.08 // 8% tax
+  const tax = subtotal * 0.08
   const shipping = subtotal > 0 ? 5.99 : 0
   const total = subtotal + tax + shipping
 
@@ -45,32 +50,28 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to complete your order",
-        variant: "destructive",
-      })
-      router.push("/login?redirect=/checkout")
-      return
-    }
-
     if (cart.length === 0) {
       toast({
         title: "Empty cart",
-        description: "Your cart is empty. Add some books before checkout.",
+        description: "Your cart is empty. Add some items before checkout.",
         variant: "destructive",
       })
       router.push("/books")
       return
     }
 
+    if (!user || !token) {
+      toast({
+        title: "Guest Checkout",
+        description: "You're placing this order as a guest.",
+      })
+    }
+
     try {
       setIsSubmitting(true)
 
-      // Create order
       const order = await createOrder({
-        userId: user.id,
+        userId: user?.id || "guest",
         items: cart,
         shippingAddress: {
           fullName: formData.fullName,
@@ -84,18 +85,18 @@ export default function CheckoutPage() {
         tax,
         shipping,
         total,
+        token: token || "",
       })
 
-      // Clear cart after successful order
       clearCart()
 
-      // Show success message
       toast({
-        title: "Order placed successfully!",
-        description: `Your order #${order.id} has been placed.`,
+        title: "🎉 Order placed successfully!",
+        description: "Thank you for your purchase. Redirecting to your order summary...",
+        variant: "default",
+        duration: 5000,
       })
 
-      // Redirect to order confirmation page
       router.push(`/orders/${order.id}`)
     } catch (error) {
       console.error("Checkout error:", error)

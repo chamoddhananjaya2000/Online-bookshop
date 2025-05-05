@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma-setup"
+import clientPromise from "@/lib/mongodb"
 import { generateToken } from "@/lib/jwt"
 
 export async function POST(request: Request) {
@@ -12,11 +12,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    })
+    // Connect to MongoDB
+    const client = await clientPromise
+    const db = client.db() // or specify db name like client.db("your-db-name")
+    const users = db.collection("users")
 
+    // Check if user already exists
+    const existingUser = await users.findOne({ email })
     if (existingUser) {
       return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
     }
@@ -25,30 +27,31 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create new user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-      },
-    })
+    const newUser = {
+      name,
+      email,
+      password: hashedPassword,
+      createdAt: new Date(),
+    }
+
+    const result = await users.insertOne(newUser)
+    const insertedUser = {
+      id: result.insertedId,
+      name,
+      email,
+      createdAt: newUser.createdAt,
+    }
 
     // Generate JWT token
     const token = generateToken({
-      id: user.id,
-      name: user.name,
-      email: user.email,
+      id: insertedUser.id.toString(),
+      name: insertedUser.name,
+      email: insertedUser.email,
     })
 
     // Return user data and token
     return NextResponse.json({
-      user,
+      user: insertedUser,
       token,
     })
   } catch (error) {
@@ -56,3 +59,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+

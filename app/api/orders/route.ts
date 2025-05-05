@@ -4,29 +4,24 @@ import { verifyToken } from "@/lib/jwt"
 
 export async function POST(request: Request) {
   try {
-    // Get authorization header
     const authHeader = request.headers.get("authorization")
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Extract token
     const token = authHeader.split(" ")[1]
     const payload = verifyToken(token)
-
     if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { items, shippingAddress, paymentMethod, subtotal, tax, shipping, total } = await request.json()
 
-    // Validate input
-    if (!items || !items.length || !shippingAddress || !paymentMethod) {
+    if (!items || items.length === 0 || !shippingAddress || !paymentMethod) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create order
     const order = await prisma.order.create({
       data: {
         userId: payload.id,
@@ -52,7 +47,7 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json(order)
+    return NextResponse.json(order, { status: 201 })
   } catch (error) {
     console.error("Order creation error:", error)
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
@@ -61,17 +56,14 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    // Get authorization header
     const authHeader = request.headers.get("authorization")
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Extract token
     const token = authHeader.split(" ")[1]
     const payload = verifyToken(token)
-
     if (!payload) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -79,7 +71,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId") || payload.id
 
-    // Only allow users to see their own orders (or admins can see all)
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       select: { isAdmin: true },
@@ -91,7 +82,7 @@ export async function GET(request: Request) {
 
     const orders = await prisma.order.findMany({
       where: {
-        userId: userId,
+        userId,
       },
       include: {
         orderItems: true,

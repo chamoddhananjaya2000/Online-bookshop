@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma-setup"
+import clientPromise from "@/lib/mongodb"
 import { generateToken } from "@/lib/jwt"
 
 export async function POST(request: Request) {
@@ -12,10 +12,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
+    // Connect to MongoDB
+    const client = await clientPromise
+    const db = client.db() // or specify like db("your-db-name")
+    const usersCollection = db.collection("users")
+
     // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
-    })
+    const user = await usersCollection.findOne({ email })
 
     // Check if user exists
     if (!user) {
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
 
     // Generate JWT token
     const token = generateToken({
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
     })
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
     // Return user data and token
     return NextResponse.json({
       user: {
-        id: user.id,
+        id: user._id,
         name: user.name,
         email: user.email,
         createdAt: user.createdAt,
