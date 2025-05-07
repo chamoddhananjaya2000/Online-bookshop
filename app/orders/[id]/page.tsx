@@ -172,7 +172,7 @@ function formatOrderStatus(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-function getOrderStatusVariant(status: string): "default" | "secondary" | "success" | "destructive" {
+function getOrderStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status.toLowerCase()) {
     case "pending":
       return "secondary"
@@ -180,7 +180,7 @@ function getOrderStatusVariant(status: string): "default" | "secondary" | "succe
       return "default"
     case "shipped":
     case "delivered":
-      return "success"
+      return "outline"
     case "cancelled":
       return "destructive"
     default:

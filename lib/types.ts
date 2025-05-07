@@ -43,6 +43,7 @@ export interface User {
   id: string
   name: string
   email: string
+  profileImageUrl?: string // Added this property
   createdAt?: string
   isAdmin?: boolean
 }

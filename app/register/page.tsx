@@ -54,7 +54,10 @@ export default function RegisterPage() {
         password: formData.password,
       })
 
-      setUser(userData)
+      setUser({
+        ...userData,
+        profileImageUrl: userData.profileImageUrl || "", // Provide a default value if missing
+      })
 
       toast({
         title: "Registration successful",

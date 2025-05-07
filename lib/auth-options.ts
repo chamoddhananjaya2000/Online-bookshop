@@ -1,7 +1,30 @@
-import type { NextAuthOptions } from "next-auth"
+import type { NextAuthOptions, Session } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
-import { db } from "@/lib/db"
+import { connectToDatabase } from "./mongodb" // Adjust the path if needed
+import { ObjectId } from "mongodb"
+
+// Extend the Session type to include the id property
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      name?: string | null
+      email?: string | null
+      image?: string | null
+    }
+  }
+
+  interface User {
+    id: string
+    name?: string | null
+    email?: string | null
+  }
+
+  interface JWT {
+    id?: string
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,9 +39,9 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
-        })
+        const { db } = await connectToDatabase()
+
+        const user = await db.collection("users").findOne({ email: credentials.email })
 
         if (!user) {
           return null
@@ -31,7 +54,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id,
+          id: user._id.toString(),
           name: user.name,
           email: user.email,
         }

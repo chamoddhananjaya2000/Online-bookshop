@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Eye, EyeOff, Upload } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getUserOrders } from "@/lib/orders"
-import { updateUserProfile } from "@/lib/auth"
+import { updateUserProfile, uploadProfilePicture } from "@/lib/auth"
 import OrderList from "@/components/order-list"
 
 export default function ProfilePage() {
@@ -26,8 +26,18 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   })
+
+  const [profileImage, setProfileImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  const [passwordVisible, setPasswordVisible] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  })
+
   const [isLoading, setIsLoading] = useState(false)
-  const [orders, setOrders] = useState([])
+  const [orders, setOrders] = useState<Order[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
 
   useEffect(() => {
@@ -41,6 +51,10 @@ export default function ProfilePage() {
       name: user.name || "",
       email: user.email || "",
     }))
+
+    if (user.profileImageUrl) {
+      setImagePreview(user.profileImageUrl)
+    }
 
     const fetchOrders = async () => {
       try {
@@ -62,6 +76,21 @@ export default function ProfilePage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setProfileImage(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  const togglePasswordVisibility = (field: keyof typeof passwordVisible) => {
+    setPasswordVisible((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -76,6 +105,11 @@ export default function ProfilePage() {
 
     try {
       setIsLoading(true)
+
+      if (profileImage) {
+        setImagePreview((await uploadProfilePicture(user?.id || "", profileImage)))
+        // Optionally store this URL in your DB as part of `updateUserProfile`
+      }
 
       const updatedUser = await updateUserProfile({
         userId: user?.id || "",
@@ -92,7 +126,6 @@ export default function ProfilePage() {
         description: "Your profile has been updated successfully.",
       })
 
-      // Reset password fields
       setFormData((prev) => ({
         ...prev,
         currentPassword: "",
@@ -111,9 +144,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) {
-    return null // Will redirect in useEffect
-  }
+  if (!user) return null
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -129,6 +160,24 @@ export default function ProfilePage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Profile Information</h2>
 
+            {/* Profile image upload */}
+            <div className="mb-6 flex items-center space-x-4">
+              <img
+                src={imagePreview || "/default-avatar.png"}
+                alt="Profile"
+                className="w-20 h-20 rounded-full object-cover border"
+              />
+              <div>
+                <Label htmlFor="profileImage">Change Profile Picture</Label>
+                <Input
+                  id="profileImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -142,40 +191,38 @@ export default function ProfilePage() {
 
               <h3 className="text-lg font-semibold mt-6 mb-2">Change Password</h3>
 
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input
-                  id="currentPassword"
-                  name="currentPassword"
-                  type="password"
-                  value={formData.currentPassword}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <Input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  minLength={8}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  minLength={8}
-                />
-              </div>
+              {["currentPassword", "newPassword", "confirmPassword"].map((field) => (
+                <div className="space-y-2" key={field}>
+                  <Label htmlFor={field}>
+                    {field === "currentPassword"
+                      ? "Current Password"
+                      : field === "newPassword"
+                      ? "New Password"
+                      : "Confirm New Password"}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id={field}
+                      name={field}
+                      type={passwordVisible[field as keyof typeof passwordVisible] ? "text" : "password"}
+                      value={formData[field as keyof typeof formData]}
+                      onChange={handleChange}
+                      minLength={field !== "currentPassword" ? 8 : undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility(field as keyof typeof passwordVisible)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                    >
+                      {passwordVisible[field as keyof typeof passwordVisible] ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
 
               <Button type="submit" className="mt-4" disabled={isLoading}>
                 {isLoading ? "Updating..." : "Update Profile"}
@@ -187,7 +234,6 @@ export default function ProfilePage() {
         <TabsContent value="orders">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Order History</h2>
-
             {isLoadingOrders ? (
               <div className="py-8 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>

@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { useToast } from "@/components/ui/use-toast"
 
 interface User {
+  profileImageUrl: any
   id: string
   name: string
   email: string

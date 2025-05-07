@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma-setup"
 import { verifyToken } from "@/lib/jwt"
+import { connectToDatabase } from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    // Get authorization header
     const authHeader = request.headers.get("authorization")
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Extract token
     const token = authHeader.split(" ")[1]
     const payload = verifyToken(token)
 
@@ -20,30 +19,30 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     const orderId = params.id
+    const { db } = await connectToDatabase()
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        orderItems: true,
-      },
-    })
+    const order = await db.collection("orders").findOne({ _id: new ObjectId(orderId) })
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    // Check if user is admin
-    const user = await prisma.user.findUnique({
-      where: { id: payload.id },
-      select: { isAdmin: true },
-    })
+    const user = await db.collection("users").findOne(
+      { _id: new ObjectId(payload.id) },
+      { projection: { isAdmin: 1 } }
+    )
 
-    // Only allow users to see their own orders (or admins can see all)
-    if (order.userId !== payload.id && !user?.isAdmin) {
+    // Restrict access unless the user is the owner or an admin
+    if (order.userId?.toString() !== payload.id && !user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    return NextResponse.json(order)
+    // You can strip or transform the order object here if needed
+    return NextResponse.json({
+      ...order,
+      id: order._id.toString(),
+      _id: undefined,
+    })
   } catch (error) {
     console.error("Error fetching order:", error)
     return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 })

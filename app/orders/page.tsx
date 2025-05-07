@@ -8,6 +8,7 @@ import OrderList from "@/components/order-list"
 import { getUserOrders } from "@/lib/orders"
 import type { Order } from "@/lib/types"
 
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -24,7 +25,7 @@ export default function OrdersPage() {
       try {
         setIsLoading(true)
         const userOrders = await getUserOrders(user.id)
-        setOrders(userOrders)
+        setOrders(Order)
       } catch (error) {
         console.error("Error fetching orders:", error)
       } finally {

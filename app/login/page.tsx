@@ -35,7 +35,10 @@ export default function LoginPage() {
 
       const userData = await loginUser({ email, password, rememberMe })
 
-      setUser(userData)
+      setUser({
+        ...userData,
+        profileImageUrl: userData.profileImageUrl || "", // Provide a default value if undefined
+      })
 
       toast({
         title: "Login successful",

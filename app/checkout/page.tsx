@@ -34,6 +34,7 @@ export default function CheckoutPage() {
     city: "",
     state: "",
     zipCode: "",
+    contactNumber: "",
     paymentMethod: "credit-card",
   })
 
@@ -44,7 +45,14 @@ export default function CheckoutPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (name === "contactNumber") {
+      const numericValue = value.replace(/\D/g, "")
+      if (numericValue.length <= 10) {
+        setFormData((prev) => ({ ...prev, [name]: numericValue }))
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,15 +68,27 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!user || !token) {
+    if (!token) {
       toast({
-        title: "Guest Checkout",
-        description: "You're placing this order as a guest.",
+        title: "Authentication Required",
+        description: "Please sign in before placing an order.",
+        variant: "destructive",
       })
+      return
+    }
+
+    if (formData.contactNumber.length !== 10) {
+      toast({
+        title: "Invalid Contact Number",
+        description: "Please enter a valid 10-digit contact number.",
+        variant: "destructive",
+      })
+      return
     }
 
     try {
       setIsSubmitting(true)
+      console.log("📦 Creating order with:", formData)
 
       const order = await createOrder({
         userId: user?.id || "guest",
@@ -79,30 +99,35 @@ export default function CheckoutPage() {
           city: formData.city,
           state: formData.state,
           zipCode: formData.zipCode,
+          contactNumber: formData.contactNumber,
         },
         paymentMethod: formData.paymentMethod,
         subtotal,
         tax,
         shipping,
         total,
-        token: token || "",
+        token,
       })
+
+      if (!order || !("id" in order)) {
+        throw new Error("Order creation failed: No order ID returned")
+      }
 
       clearCart()
 
       toast({
         title: "🎉 Order placed successfully!",
-        description: "Thank you for your purchase. Redirecting to your order summary...",
+        description: "Thank you for your purchase. Redirecting...",
         variant: "default",
-        duration: 5000,
+        duration: 4000,
       })
 
-      router.push(`/orders/${order.id}`)
-    } catch (error) {
-      console.error("Checkout error:", error)
+      router.push(`/orders/confirmation?id=${order.id}`)
+    } catch (error: any) {
+      console.error("❌ Order submission failed:", error)
       toast({
         title: "Checkout failed",
-        description: "There was an error processing your order. Please try again.",
+        description: error.message || "Something went wrong during checkout. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -143,6 +168,19 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   <Label htmlFor="zipCode">ZIP Code</Label>
                   <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleChange} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <Input
+                    id="contactNumber"
+                    name="contactNumber"
+                    type="tel"
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    pattern="\d{10}"
+                    title="Please enter a valid 10-digit phone number"
+                    required
+                  />
                 </div>
               </div>
             </div>

@@ -92,3 +92,33 @@ export async function logoutUser(): Promise<void> {
   // For client-side logout, we just clear the token and user data
   // This is handled in the auth context
 }
+
+// Add the uploadProfilePicture function
+export async function uploadProfilePicture(userId: string, file: File): Promise<string> {
+  // Get token from storage
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
+  const formData = new FormData()
+  formData.append("userId", userId)
+  formData.append("file", file)
+
+  const response = await fetch("/api/auth/upload-profile-picture", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to upload profile picture")
+  }
+
+  const data = await response.json()
+  return data.imageUrl // Assuming the API returns the uploaded image URL
+}
